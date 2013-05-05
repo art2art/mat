@@ -1,5 +1,7 @@
 package mat
 
+import "fmt"
+
 type num int
 type vec []float64
 type Mat2f struct {
@@ -16,36 +18,28 @@ func NewMat2f(v vec, r, c num) *Mat2f {
 }
 
 func (m *Mat2f) Copy() *Mat2f {
-	newv := make(vec, m.r*m.c)
-	copy(newv, m.v)
-	return NewMat2f(newv, m.r, m.c)
+	c := make(vec, m.r*m.c)
+	copy(c, m.v)
+	return NewMat2f(c, m.r, m.c)
 }
 
-func Identity(sq num) *Mat2f {
-	m := make(vec, sq*sq)
-	for i := num(0); i < sq*sq; i += (sq + 1) {
-		m[i] = 1.0
+func (m *Mat2f) Set(idx num, v float64) error {
+	if idx >= m.Length() {
+		return fmt.Errorf("[Set] wrong index (idx:%d)", idx)
 	}
-	return &Mat2f{v: m, r: sq, c: sq}
-}
-
-func (m *Mat2f) Set(v float64, r, c num) error {
-	if m.r <= r && m.c <= c {
-		return nil
-	}
-	m.v[m.idx(r, c)] = v
+	m.v[idx] = v
 	return nil
 }
 
-func (m *Mat2f) Scale() (num, num) {
+func (m *Mat2f) Size() (num, num) {
 	return m.r, m.c
 }
 
-func (m *Mat2f) Size() num {
+func (m *Mat2f) Length() num {
 	return m.r * m.c
 }
 
-func (m *Mat2f) Transpose() *Mat2f {
+func (m *Mat2f) Tran() *Mat2f {
 	out := &Mat2f{r: m.r, c: m.c}
 	if m.r == 1 || m.c == 1 {
 		out.v = make(vec, m.r*m.c)
@@ -59,16 +53,16 @@ func (m *Mat2f) Transpose() *Mat2f {
 	return out
 }
 
-func (m *Mat2f) Inverse() *Mat2f {
+func (m *Mat2f) Inv() *Mat2f {
 	if m.r != m.c {
 		return nil
 	}
-	ext := m.ConnWithIdent()
+	ext := m.connIdent()
 	fcheck := func(i num) bool { return i < m.r }
 	bcheck := func(i num) bool { return i >= 0 }
 	gaussStep := func(start, step num, bound func(num) bool) bool {
 		for i := start; bound(i); i += step {
-			// #1 
+			// #1
 			if ext.v[ext.idx(i, i)] == 0 {
 				mark := true
 				for j := i + step; bound(j); j += step {
@@ -83,49 +77,51 @@ func (m *Mat2f) Inverse() *Mat2f {
 					return false
 				}
 			}
-			// #2 
+			// #2
 			for j := i + step; bound(j); j += step {
 				k := ext.v[ext.idx(j, i)] / ext.v[ext.idx(i, i)]
 				for jc, a := range ext.row(ext.idx(i, i)) {
-					ext.v[ext.idx(j, num(jc))] -= k * a
+					if num(jc) == i {
+						ext.v[ext.idx(j, i)] = 0
+					} else {
+						ext.v[ext.idx(j, num(jc))] -= k * a
+					}
 				}
 			}
 		}
 		return true
 	}
-	
+
 	if !gaussStep(0, 1, fcheck) {
 		return nil
 	}
 	if !gaussStep(m.r-1, -1, bcheck) {
 		return nil
 	}
-
-	result := make(vec, m.r*m.r)
-	for i := num(0); i < m.r; i++ {
+	result := make(vec, m.r * m.r)
+	for i := num(0); i < ext.r; i++ {
 		ii := ext.idx(i, i)
 		row := ext.row(ii)
 		for j := ext.r; j < ext.c; j++ {
-			result[m.idx(i, j-ext.r)] = row[j] / ext.v[ii]
+			result[m.idx(i, j - ext.r)] = row[j] / ext.v[ii]
 		}
 	}
-
-	return &Mat2f{v: result, r: m.r, c: m.c}
+	return &Mat2f{v: result, r: ext.r, c: ext.r}
 }
 
-func (m *Mat2f) PseudoInverse() *Mat2f {
-	xT := m.Transpose()
+// (X' * X)^-1 * X'
+func (m *Mat2f) PInv() *Mat2f {
+	xT := m.Tran()
 	xM := xT.Mult(m)
 	if xM == nil {
 		return nil
 	}
-	xI := xM.Inverse()
+	xI := xM.Inv()
 	if xI == nil {
 		return nil
 	}
 	return xI.Mult(xT)
 }
-
 
 func (a *Mat2f) Add(b *Mat2f) *Mat2f {
 	if a.r != b.r || a.c != b.c {
@@ -160,53 +156,11 @@ func (a *Mat2f) Mult(b *Mat2f) *Mat2f {
 	return &out
 }
 
-// @private
-func (m *Mat2f) row(i num) vec {
-	_, ic := m.ids(i)
-//	c := make(vec, m.c)
-//	copy(c, m.v[(i-ic):(i-ic+m.c)])
-	return m.v[(i - ic):(i - ic + m.c)]
-}
-
-// @private
-func (m *Mat2f) column(i num) vec {
-	col := make(vec, m.r)
-	ir, ic := m.ids(i)
-	for i, _ := range col {
-		col[i] = m.v[m.idx(ir, ic)]
-		ir++
+// Identity matrix
+func I(sq num) *Mat2f {
+	m := make(vec, sq*sq)
+	for i := num(0); i < sq*sq; i += (sq + 1) {
+		m[i] = 1.0
 	}
-	return col
-}
-
-// @private
-func (m *Mat2f) ids(i num) (num, num) {
-	return (i - i%m.c) / m.c, i % m.c
-}
-
-// @private
-func (m *Mat2f) idx(r, c num) num {
-	return m.c*r + c
-}
-
-// @private 
-func (m *Mat2f) ConnWithIdent() *Mat2f {
-	var merged vec
-	for i := num(0); i < m.r; i++ {
-		tail := make(vec, m.r)
-		tail[i] = 1.0
-		row := make(vec, m.r)
-		copy(row, m.row(m.idx(i, 0)))
-		merged = append(merged, append(row, tail...)...)
-	}
-	return &Mat2f{v: merged, r: m.r, c: 2 * m.c}
-}
-
-// @private
-func (m *Mat2f) SplitOffIdent() *Mat2f {
-	var splitted vec
-	for i := num(0); i < m.r; i++ {
-		splitted = append(splitted, m.v[m.idx(i, m.r):m.idx(i, m.c)]...)
-	}
-	return &Mat2f{v: splitted, r: m.r, c: m.r}
+	return &Mat2f{v: m, r: sq, c: sq}
 }

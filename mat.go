@@ -1,9 +1,9 @@
 package mat
 
 type Mat interface {
-	Transpose()
-	Inverse() *Mat
-	PseudoInverse() *Mat
+	Tran() *Mat
+	Inv() *Mat
+	PInv() *Mat
 	Mult(*Mat) *Mat
 	Add(*Mat) *Mat
 }
