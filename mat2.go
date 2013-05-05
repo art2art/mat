@@ -7,7 +7,7 @@ type Mat2 struct {
 	v    []interface{}
 }
 
-func NewMat2(v []interface{}, r, c int) (*Mat2, error) {
+func NewMat2(r, c int, v []interface{}) (*Mat2, error) {
 	if len(v) != r*c {
 		return nil, fmt.Errorf("[NewMat2] wrong indecies (r:%d, c:%d)", r, c)
 	}

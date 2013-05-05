@@ -10,7 +10,7 @@ type Mat2f struct {
 	v vec
 }
 
-func NewMat2f(v vec, r, c num) *Mat2f {
+func NewMat2f(r, c num, v vec) *Mat2f {
 	if len(v) != int(r*c) {
 		return nil
 	}
@@ -20,7 +20,7 @@ func NewMat2f(v vec, r, c num) *Mat2f {
 func (m *Mat2f) Copy() *Mat2f {
 	c := make(vec, m.r*m.c)
 	copy(c, m.v)
-	return NewMat2f(c, m.r, m.c)
+	return NewMat2f(m.r, m.c, c)
 }
 
 func (m *Mat2f) Set(idx num, v float64) error {
@@ -127,7 +127,7 @@ func (a *Mat2f) Add(b *Mat2f) *Mat2f {
 	if a.r != b.r || a.c != b.c {
 		return nil
 	}
-	result := NewMat2f(make(vec, a.r*a.c), a.r, a.c)
+	result := NewMat2f(a.r, a.c, make(vec, a.r*a.c))
 	for i, v := range a.v {
 		result.v[i] = v + b.v[i]
 	}

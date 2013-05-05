@@ -5,7 +5,7 @@ import "mat"
 import "fmt"
 
 func main() {
-	a := mat.NewMat2f([]float64{9, 2, 3, 4, 5, 6, 7, 8, 9}, 3, 3)
+	a := mat.NewMat2f(3, 3, []float64{9, 2, 3, 4, 5, 6, 7, 8, 9})
 	fmt.Println()
 	fmt.Println(a)
 	fmt.Println("#0", a.Tran())
